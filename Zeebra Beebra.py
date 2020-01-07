@@ -14,12 +14,12 @@ start = 0.3
 end = 0.5
 margin = 0.2
 
-brightbasket = 0.25
-darkbasket = 0.5
+brightbasket = 0.35
+darkbasket = 0.35
 
 #contrast sensitivity variable
 senso = 0.23 #how much of the bright and dark of an image chunk should be averaged to get the contrast score
-sensotoo = 0.13 #How much of the high-contrast image pool should go into the folder
+sensotoo = 0.15 #How much of the high-contrast image pool should go into the folder
 
 #Get list of files
 Tk().withdraw() #Stop Tk GUI from opening, aesthetic improvement
@@ -38,7 +38,7 @@ for folder in createfolders:
     except OSError:
         print("Folder ", folder, " already exists or cannot be made here.")
     else:
-        print(folder, " made.")
+        print(folder, "made.")
 
 
 onlyfiles = [f for f in listdir(rootpath) if isfile(join(rootpath, f))] #Creates a list of only files, not folders.
@@ -71,6 +71,13 @@ for current in trange(totality):
     contra.append(bigcontrol)
     brightlist.append(brighto)
 
+brightest = brightlist.index(max(brightlist))
+shutil.move(join(rootpath, onlyjpegs[brightest]), join(rootpath, "Bright"))
+
+print(brightest, "-", onlyjpegs[brightest])
+del brightlist[brightest]
+del onlyjpegs[brightest]
+del contra[brightest]
 
 #print(brightlist)
 print(min(brightlist),", ",max(brightlist),", ",np.mean(brightlist))
