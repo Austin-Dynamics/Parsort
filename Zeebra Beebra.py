@@ -14,12 +14,19 @@ start = 0.3
 end = 0.5
 margin = 0.2
 
-brightbasket = 0.35
+brightbasket = 0.2
 darkbasket = 0.35
 
 #contrast sensitivity variable
 senso = 0.23 #how much of the bright and dark of an image chunk should be averaged to get the contrast score
 sensotoo = 0.15 #How much of the high-contrast image pool should go into the folder
+
+#get absolute path
+script_dir = os.path.dirname(__file__)
+#setup face cascade trained file
+face_cascade = cv2.CascadeClassifier(join(script_dir,'important/haarcascade_frontalface_default.xml'))
+#create empty list for faces
+facelist = []
 
 #Get list of files
 Tk().withdraw() #Stop Tk GUI from opening, aesthetic improvement
@@ -64,9 +71,17 @@ imagenow = cv2.imread(join(rootpath, onlyjpegs[0]))
 for current in trange(totality):
     imagenow = cv2.imread(join(rootpath, onlyjpegs[current]), 0) #join the rootpath string with the current item in the jpeg list for a full filepath
     imagesearch = imagenow[ystart:yend,margo:(xdim - margo)]
-    brighto = np.mean(imagesearch)
-    contrasttime = np.sort(np.reshape(imagesearch, [1,imagesearch.size]))
-    consize = contrasttime.size
+    face = face_cascade.detectMultiScale(imagesearch, 1.3, 5)
+    if face != ():
+        imageface = imagesearch[(face[0,1]):(face[0,1]+face[0,3]),(face[0,0]):(face[0,0]+face[0,2])]
+        brighto = np.mean(imageface)
+        contrasttime = np.sort(np.reshape(imageface, [1, imageface.size]))
+        consize = contrasttime.size
+        facelist.append(onlyjpegs[current])
+    else:
+        brighto = np.mean(imagesearch)
+        contrasttime = np.sort(np.reshape(imagesearch, [1,imagesearch.size]))
+        consize = contrasttime.size
     bigcontrol = (np.mean(contrasttime[0,round(consize-(consize * senso)):consize] - np.mean(contrasttime[0,0:round((consize * senso))])))
     contra.append(bigcontrol)
     brightlist.append(brighto)
@@ -81,6 +96,7 @@ del contra[brightest]
 
 #print(brightlist)
 print(min(brightlist),", ",max(brightlist),", ",np.mean(brightlist))
+print(len(facelist)," faces found out of ",len(onlyjpegs)," images total.")
 mini = min(brightlist) + (darkbasket * (max(brightlist)-min(brightlist)))
 maxi = max(brightlist) - (brightbasket * (max(brightlist)-min(brightlist)))
 highcontrast = max(contra) - (sensotoo * (max(contra)-min(contra)))
