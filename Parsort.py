@@ -72,7 +72,7 @@ for current in trange(totality):
     imagenow = cv2.imread(join(rootpath, onlyjpegs[current]), 0) #join the rootpath string with the current item in the jpeg list for a full filepath
     imagesearch = imagenow[ystart:yend,margo:(xdim - margo)]
     face = face_cascade.detectMultiScale(imagesearch, 1.3, 5)
-    if face != ():
+    if type(face) == np.ndarray:
         imageface = imagesearch[(face[0,1]):(face[0,1]+face[0,3]),(face[0,0]):(face[0,0]+face[0,2])]
         brighto = np.mean(imageface)
         contrasttime = np.sort(np.reshape(imageface, [1, imageface.size]))
