@@ -10,16 +10,16 @@ import shutil
 
 
 #start and end of the vertical read chunk on images
-start = 0.3
-end = 0.5
+start = 0.1
+end = 0.6
 margin = 0.2
 
 brightbasket = 0.2
-darkbasket = 0.35
+darkbasket = 0.4
 
 #contrast sensitivity variable
-senso = 0.23 #how much of the bright and dark of an image chunk should be averaged to get the contrast score
-sensotoo = 0.15 #How much of the high-contrast image pool should go into the folder
+senso = 0.15 #how much of the bright and dark of an image chunk should be averaged to get the contrast score
+sensotoo = 0.10 #How much of the high-contrast image pool should go into the folder
 
 #get absolute path
 script_dir = os.path.dirname(__file__)
@@ -58,6 +58,9 @@ if onlyjpegs == []:
 #setup values for the sorting loop
 brightlist = [] #create empty list to store brightness values
 contra = [] #create empty contrast value list
+facebrightness = []
+squarebrightness = []
+nofind = []
 #store dimensions of image for later use (all images should be same size for effective sort)
 dimensions = (cv2.imread(join(rootpath, onlyjpegs[0]))).shape
 ydim = dimensions[0]
@@ -66,41 +69,62 @@ ystart = round(ydim * start) # get beginning of datachunk for brightness samplin
 yend = round(ydim * end) # get end
 margo = round(xdim * margin)
 totality = len(onlyjpegs)
-imagenow = cv2.imread(join(rootpath, onlyjpegs[0]))
 
 for current in trange(totality):
-    imagenow = cv2.imread(join(rootpath, onlyjpegs[current]), 0) #join the rootpath string with the current item in the jpeg list for a full filepath
-    imagesearch = imagenow[ystart:yend,margo:(xdim - margo)]
-    face = face_cascade.detectMultiScale(imagesearch, 1.3, 5)
+    # join the rootpath string with the current item in the jpeg list for a full filepath
+    imagenow = cv2.imread(join(rootpath, onlyjpegs[current]), 0)
+    imagesearch = imagenow[ystart:yend, 0:xdim]
+    face = face_cascade.detectMultiScale(imagesearch, 1.2, 5)
     if type(face) == np.ndarray:
         imageface = imagesearch[(face[0,1]):(face[0,1]+face[0,3]),(face[0,0]):(face[0,0]+face[0,2])]
         brighto = np.mean(imageface)
         contrasttime = np.sort(np.reshape(imageface, [1, imageface.size]))
         consize = contrasttime.size
         facelist.append(onlyjpegs[current])
+        facebrightness.append(brighto)
     else:
+        imagesearch = imagenow[ystart:yend, margo:(xdim - margo)]
         brighto = np.mean(imagesearch)
         contrasttime = np.sort(np.reshape(imagesearch, [1,imagesearch.size]))
         consize = contrasttime.size
+        squarebrightness.append(brighto)
+        nofind.append(onlyjpegs[current])
     bigcontrol = (np.mean(contrasttime[0,round(consize-(consize * senso)):consize] - np.mean(contrasttime[0,0:round((consize * senso))])))
     contra.append(bigcontrol)
     brightlist.append(brighto)
 
+#compensate for background color in images where no face was found
+print("\nface detected brightness was", np.mean(facebrightness))
+print("brightness of non-face images was ",np.mean(squarebrightness))
+compensate = np.mean(facebrightness)-np.mean(squarebrightness)
+print("The difference is ",compensate)
+if len(squarebrightness) > 5 and abs(np.mean(facebrightness)-np.mean(squarebrightness)) > 1.5:
+    for current in range(len(squarebrightness)):
+        brightlist[brightlist.index(nofind[current])] = (squarebrightness[current] + (compensate * 0.9))
+    print("Non-face images compensated to ",np.mean(squarebrightness),"\n")
+else:
+    print("Difference not compensated\n")
+
+#identify brightest image, sort it, and remove it from consideration (to avoid greycard skewing results)
 brightest = brightlist.index(max(brightlist))
 shutil.move(join(rootpath, onlyjpegs[brightest]), join(rootpath, "Bright"))
-
-print(brightest, "-", onlyjpegs[brightest])
+print(onlyjpegs[brightest], "(",brightest,") was the brightest image.\n")
 del brightlist[brightest]
 del onlyjpegs[brightest]
 del contra[brightest]
 
-#print(brightlist)
+#report brightness range and success of face detection
 print(min(brightlist),", ",max(brightlist),", ",np.mean(brightlist))
 print(len(facelist)," faces found out of ",len(onlyjpegs)," images total.")
+print("Faces were not found in the following images:")
+print(nofind)
+
+#calculate threshold for brightness categories based on overall gamut
 mini = min(brightlist) + (darkbasket * (max(brightlist)-min(brightlist)))
 maxi = max(brightlist) - (brightbasket * (max(brightlist)-min(brightlist)))
 highcontrast = max(contra) - (sensotoo * (max(contra)-min(contra)))
 
+#move images to assigned categories
 for decide in range(len(brightlist)):
     if contra[decide] > highcontrast:
         shutil.move(join(rootpath, onlyjpegs[decide]), join(rootpath, "High Contrast"))
@@ -111,3 +135,5 @@ for decide in range(len(brightlist)):
 
     if brightlist[decide] > maxi:
         shutil.move(join(rootpath, onlyjpegs[decide]), join(rootpath, "Bright"))
+
+cv2.waitKey(0)
