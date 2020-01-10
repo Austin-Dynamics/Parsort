@@ -81,15 +81,14 @@ totality = len(onlyjpegs)
 for current in trange(totality):
     imagenow = cv2.imread(join(rootpath, onlyjpegs[current]))
     imagesearch = imagenow[ystart:yend, 0:xdim, 0:3]
-    setface = cv2.cvtColor(imagesearch, cv2.COLOR_BGR2GRAY)
-    face = face_cascade.detectMultiScale(setface, 1.2, 5)
+    face = face_cascade.detectMultiScale(imagesearch, 1.2, 5)
     if type(face) == np.ndarray:
         imageface = imagesearch[
                     int(face[0,1]+((face[0,3]*facecrop))):int(face[0,1]+(face[0,3]*(1-2*facecrop))),
                     int(face[0,0]+face[0,2]*facecrop):int(face[0,0]+(face[0,2]*(1-2*facecrop))),0:3]
     else:
         face_cascade = cv2.CascadeClassifier(join(script_dir, 'important/haarcascade_mcs_nose.xml'))
-        face = face_cascade.detectMultiScale(setface, 1.2, 5)
+        face = face_cascade.detectMultiScale(imagesearch, 1.2, 5)
         if type(face) == np.ndarray:
             imageface = imagesearch[
                         int(face[0, 1] - ((face[0, 3] * 1))):int(face[0, 1] + (face[0, 3] * (2.2))),
@@ -129,14 +128,35 @@ for unsorted in nofind:
 #create Z-score lists and remove outlier data
 z_bright = stats.zscore(brightlist)
 z_bright = z_bright.tolist()
-print("Lowest Z score for this set is ",
-      min(z_bright),", the average was ",np.mean(z_bright),
-      ", and the highest was ",max(z_bright))
-print("The image with the lowest Z score was",onlyjpegs[z_bright.index(min(z_bright))],"\n")
+z_sat = stats.zscore(saturate)
+z_sat = z_sat.tolist()
+outlierlist = []
+zdelete = []
+
+for outlier in range(len(onlyjpegs)):
+    if abs(z_bright[outlier]) > 3 or abs(z_sat[outlier]) > 3:
+        shutil.move(join(rootpath, onlyjpegs[outlier]), join(rootpath, "Unsorted"))
+        outlierlist.append(onlyjpegs[outlier])
+
+if len(outlierlist) > 0:
+    for deleto in outlierlist:
+        bigdeleto = onlyjpegs.index(deleto)
+        del z_bright[bigdeleto]
+        del z_sat[bigdeleto]
+        del brightlist[bigdeleto]
+        del contra[bigdeleto]
+        del onlyjpegs[bigdeleto]
+        del saturate[bigdeleto]
+    print("\nOutliers were found:\n",outlierlist)
+else:
+    print("\nNo outliers found.\n")
+print("length of lists after:",len(z_bright)+len(brightlist)+len(z_sat)+len(contra)+len(onlyjpegs)+len(saturate))
+
 print("The image with the highest saturation was",onlyjpegs[saturate.index(max(saturate))])
 
+
 #report success of face detection
-print(len(facelist)," faces found out of ",len(onlyjpegs)+len(nofind)," images total.")
+print(len(facelist)," faces found out of ",totality," images total.")
 print("There were ",len(facecaught)," faces caught by the backup algorithm:")
 if len(facecaught) > 0:
     print(facecaught)
@@ -151,7 +171,7 @@ highcontrast = max(contra) - (sensotoo * (max(contra)-min(contra)))
 satmax = max(saturate) - (satbasket * (max(saturate)-min(saturate)))
 
 #move images to assigned categories
-for decide in range(len(brightlist)):
+for decide in range(len(onlyjpegs)):
     if contra[decide] > highcontrast:
         shutil.move(join(rootpath, onlyjpegs[decide]), join(rootpath, "High Contrast"))
         continue
