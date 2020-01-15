@@ -1,4 +1,5 @@
 import os
+import sys
 from os import listdir
 from os.path import isfile, join
 from tkinter import Tk  # For preventing Tk GUI from opening
@@ -35,6 +36,18 @@ layout = [[sg.Text('Category Tolerances:'), sg.Button("Reset", key="resetbutton"
 grootpath = ""
 
 
+# get absolute path
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 def parsortation(brightbasket, darkbasket, satbasket, sensotoo, contbias, rootpath):
     # start and end of the vertical read chunk on images
     start = 0.1
@@ -48,10 +61,8 @@ def parsortation(brightbasket, darkbasket, satbasket, sensotoo, contbias, rootpa
     # contrast sensitivity variable
     clothesbias = 0.9  # Multiplier for clothes contrast to balance for hair contrast.
 
-    # get absolute path
-    script_dir = os.path.dirname(__file__)
     # setup face cascade trained file
-    face_cascade = cv2.CascadeClassifier(join(script_dir, 'important/haarcascade_frontalface_default.xml'))
+    face_cascade = cv2.CascadeClassifier(resource_path('important/haarcascade_frontalface_default.xml'))
     # create empty list for faces
     facelist = []
 
@@ -98,7 +109,7 @@ def parsortation(brightbasket, darkbasket, satbasket, sensotoo, contbias, rootpa
     yend = round(ydim * end)  # get end
     margo = round(xdim * margin)
     totality = len(onlyjpegs)
-    if not os.path.exists(join(script_dir, "important/haarcascade_frontalface_default.xml")):
+    if not os.path.exists(resource_path("important/haarcascade_frontalface_default.xml")):
         print("Error! Haar Cascade XML files missing.")
         window.Refresh()
         return
@@ -121,7 +132,7 @@ def parsortation(brightbasket, darkbasket, satbasket, sensotoo, contbias, rootpa
             face_x = int(face[0, 0] + face[0, 2] * (facecrop * 0.5))
             face_w = int((face[0, 0] + face[0, 2] * (facecrop * 0.5)) + face[0, 2] * (1 - facecrop))
         else:
-            face_cascade = cv2.CascadeClassifier(join(script_dir, 'important/haarcascade_mcs_nose.xml'))
+            face_cascade = cv2.CascadeClassifier(resource_path('important/haarcascade_mcs_nose.xml'))
             face = face_cascade.detectMultiScale(imagesearch, 1.2, 5)
             if type(face) == np.ndarray:
                 face_y = int(face[0, 1] - (face[0, 3] * 2))
@@ -130,14 +141,14 @@ def parsortation(brightbasket, darkbasket, satbasket, sensotoo, contbias, rootpa
                 face_w = int(face[0, 0] + (face[0, 2] * 2))
                 facecaught.append(onlyjpegs[current])
                 face_cascade = cv2.CascadeClassifier(
-                    join(script_dir, 'important/haarcascade_frontalface_default.xml'))
+                    resource_path('important/haarcascade_frontalface_default.xml'))
             else:
                 brightlist.append(404)
                 contra.append(404)
                 nofind.append(onlyjpegs[current])
                 saturate.append(404)
                 face_cascade = cv2.CascadeClassifier(
-                    join(script_dir, 'important/haarcascade_frontalface_default.xml'))
+                    resource_path('important/haarcascade_frontalface_default.xml'))
                 continue
         imageface = imagesearch[face_y:face_h, face_x:face_w, 0:3]
         facelist.append(onlyjpegs[current])
@@ -248,7 +259,7 @@ def parsortation(brightbasket, darkbasket, satbasket, sensotoo, contbias, rootpa
 question_active = False
 
 # Create the Window
-window = sg.Window('Parsort', layout)
+window = sg.Window('Parsort', layout, icon=resource_path("important/get_off_my_lawn.ico"))
 # Event Loop to process "events"
 while True:
     event, values = window.read()
@@ -278,7 +289,7 @@ while True:
                    [sg.Text("Leaving the value at 30 works for most sets and applications.")],
                    [sg.CloseButton("Close", key="qclose"), sg.Text(" "*55), sg.Text("▓", text_color="Dark Slate Blue",
                                                                                     tooltip="Created by Austin Flory")]]
-        question = sg.Window("Help", qlayout, finalize=True)
+        question = sg.Window("Help", qlayout, finalize=True, icon=resource_path("important/get_off_my_lawn.ico"))
         window.Element('question').Update(disabled=True)
         question_active = True
     if question_active is True:
